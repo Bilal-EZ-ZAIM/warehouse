@@ -8,12 +8,18 @@ import {
   Image,
   Dimensions,
   Platform,
+  StatusBar,
+  Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
-export function ProductDetailScreen() {
+export function ProductDetailScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const scrollY = new Animated.Value(0);
+
   const product = {
     id: 1,
     name: "Laptop HP Pavilion",
@@ -40,29 +46,70 @@ export function ProductDetailScreen() {
   };
 
   const renderSpecification = (label, value) => (
-    <View style={styles.specRow}>
+    <View style={styles.specRow} key={label}>
       <Text style={styles.specLabel}>{label}</Text>
       <Text style={styles.specValue}>{value}</Text>
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient colors={["#4f46e5", "#3b82f6"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Détails du produit</Text>
-        </View>
-      </LinearGradient>
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* صورة المنتج */}
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Animated Header Background */}
+      <Animated.View
+        style={[
+          styles.headerBackground,
+          {
+            opacity: headerOpacity,
+            top: -insets.top,
+            height: 60 + insets.top,
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={["#4f46e5", "#3b82f6"]}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <Animated.Text
+          style={[
+            styles.headerTitle,
+            {
+              opacity: headerOpacity,
+            },
+          ]}
+        >
+          {product.name}
+        </Animated.Text>
+      </View>
+
+      <Animated.ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Product Image */}
         <View style={styles.imageContainer}>
           <Image
             source={{ uri: product.image }}
@@ -71,55 +118,37 @@ export function ProductDetailScreen() {
           />
         </View>
 
-        {/* معلومات المنتج الأساسية */}
-        <View style={styles.productInfo}>
+        {/* Product Info Card */}
+        <View style={styles.card}>
           <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.productType}>{product.type}</Text>
           <Text style={styles.productPrice}>{product.price} DH</Text>
 
-          <View style={styles.statusContainer}>
-            <Text
-              style={[
-                styles.statusText,
-                product.stock > 10
-                  ? styles.inStock
-                  : product.stock > 0
-                  ? styles.lowStock
-                  : styles.outOfStock,
-              ]}
-            >
+          <View style={[styles.statusContainer, styles.statusBackground(product.stock)]}>
+            <Text style={styles.statusText(product.stock)}>
               {product.status} • {product.stock} unités
             </Text>
           </View>
         </View>
 
-        {/* وصف المنتج */}
-        <View style={styles.section}>
+        {/* Description Card */}
+        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Description</Text>
           <Text style={styles.description}>{product.description}</Text>
         </View>
 
-        {/* المواصفات */}
-        <View style={styles.section}>
+        {/* Specifications Card */}
+        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Spécifications</Text>
           <View style={styles.specificationsContainer}>
-            {renderSpecification(
-              "Processeur",
-              product.specifications.processor
+            {Object.entries(product.specifications).map(([key, value]) =>
+              renderSpecification(key.charAt(0).toUpperCase() + key.slice(1), value)
             )}
-            {renderSpecification("RAM", product.specifications.ram)}
-            {renderSpecification("Stockage", product.specifications.storage)}
-            {renderSpecification("Écran", product.specifications.screen)}
-            {renderSpecification(
-              "Carte graphique",
-              product.specifications.graphics
-            )}
-            {renderSpecification("Système", product.specifications.os)}
           </View>
         </View>
 
-        {/* معلومات إضافية */}
-        <View style={styles.section}>
+        {/* Additional Info Card */}
+        <View style={[styles.card, styles.lastCard]}>
           <Text style={styles.sectionTitle}>Informations supplémentaires</Text>
           <View style={styles.additionalInfo}>
             {renderSpecification("Fournisseur", product.supplier)}
@@ -128,9 +157,9 @@ export function ProductDetailScreen() {
             {renderSpecification("Dernière mise à jour", product.lastUpdated)}
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* أزرار الإجراءات */}
+      {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.actionButton, styles.editButton]}
@@ -155,14 +184,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8fafc",
   },
-  header: {
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
-  headerContent: {
+  header: {
+    height: 60,
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 20,
+    zIndex: 2,
   },
   backButton: {
     width: 40,
@@ -174,97 +208,75 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 24,
-    color: "#ffffff",
+    color: "#1e293b",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "600",
     color: "#ffffff",
-    marginLeft: 15,
+    marginLeft: 16,
   },
   content: {
     flex: 1,
-    padding: 20,
   },
   imageContainer: {
-    width: "100%",
-    height: 250,
+    width: width,
+    height: width * 0.8,
     backgroundColor: "#ffffff",
-    borderRadius: 15,
-    overflow: "hidden",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 16,
   },
   productImage: {
     width: "100%",
     height: "100%",
   },
-  productInfo: {
+  card: {
     backgroundColor: "#ffffff",
-    borderRadius: 15,
+    borderRadius: 20,
     padding: 20,
-    marginBottom: 20,
+    marginHorizontal: 16,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  lastCard: {
+    marginBottom: 100, // Space for action buttons
   },
   productName: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: "700",
     color: "#1e293b",
-    marginBottom: 5,
+    marginBottom: 8,
   },
   productType: {
     fontSize: 16,
     color: "#64748b",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   productPrice: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "700",
     color: "#4f46e5",
-    marginBottom: 15,
+    marginBottom: 16,
   },
-  statusContainer: {
-    backgroundColor: "#f1f5f9",
-    borderRadius: 10,
-    padding: 10,
-  },
-  statusText: {
+  statusBackground: (stock) => ({
+    backgroundColor: stock > 10 ? "#dcfce7" : stock > 0 ? "#fef3c7" : "#fee2e2",
+    borderRadius: 12,
+    padding: 12,
+  }),
+  statusText: (stock) => ({
     fontSize: 16,
+    fontWeight: "600",
     textAlign: "center",
-  },
-  inStock: {
-    color: "#16a34a",
-  },
-  lowStock: {
-    color: "#d97706",
-  },
-  outOfStock: {
-    color: "#dc2626",
-  },
-  section: {
-    backgroundColor: "#ffffff",
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
+    color: stock > 10 ? "#16a34a" : stock > 0 ? "#d97706" : "#dc2626",
+  }),
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "700",
     color: "#1e293b",
-    marginBottom: 15,
+    marginBottom: 16,
   },
   description: {
     fontSize: 16,
@@ -272,34 +284,38 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   specificationsContainer: {
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: "hidden",
+    backgroundColor: "#f8fafc",
   },
   specRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
   },
   specLabel: {
     fontSize: 15,
     color: "#64748b",
+    flex: 1,
   },
   specValue: {
     fontSize: 15,
     color: "#1e293b",
     fontWeight: "500",
-  },
-  additionalInfo: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    overflow: "hidden",
+    flex: 2,
+    textAlign: "right",
   },
   actionButtons: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
-    padding: 20,
+    padding: 16,
     backgroundColor: "#ffffff",
     borderTopWidth: 1,
     borderTopColor: "#e2e8f0",
@@ -310,7 +326,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 5,
+    marginHorizontal: 6,
   },
   editButton: {
     backgroundColor: "#4f46e5",
