@@ -3,6 +3,7 @@
     {
       "id": "1",
       "name": "Laptop HP Pavilion",
+      "description": "Un ordinateur portable haut de gamme conçu pour les professionnels et les utilisateurs exigeants. Il est équipé d'un processeur rapide, d'un écran HD et d'une batterie longue durée.",
       "type": "Informatique",
       "barcode": "1234567890123",
       "price": 1200,
@@ -41,6 +42,7 @@
     {
       "id": "2",
       "name": "Clavier Mécanique Logitech",
+      "description": "Un clavier mécanique de haute qualité, idéal pour les gamers et les professionnels de l'informatique. Il offre une expérience de frappe fluide et précise.",
       "type": "Accessoires",
       "barcode": "9876543210987",
       "price": 100,
@@ -78,6 +80,7 @@
     {
       "id": "3",
       "name": "Pc Gamer Omen By HP",
+      "description": "Un PC gamer puissant conçu pour les joueurs exigeants. Il est équipé d'un processeur Intel Core i7, d'une carte graphique NVIDIA GTX et d'un système de refroidissement avancé.",
       "type": "Informatique",
       "barcode": "1236543210987",
       "price": 11000,

@@ -24,6 +24,7 @@ export function HomeScreen({ navigation }) {
   const [sortOrder, setSortOrder] = useState("asc");
   const [isAdmin, setIsAdmin] = useState(false);
   const [userName, setUsername] = useState("");
+  const [products, setProducts] = useState([]);
 
   const categories = [
     "Tous",
@@ -33,47 +34,19 @@ export function HomeScreen({ navigation }) {
     "Réseau",
   ];
 
-  const products = [
-    {
-      id: 1,
-      name: "Laptop HP Pavilion",
-      type: "Informatique",
-      price: "12000",
-      priceNum: 12000,
-      image:
-        "https://mediazone.ma/uploads/images/products/16412/landing-page/assets/images/swiper-1.png",
-      stock: 21,
-      status: "En stock",
-      supplier: "HP Maroc",
-    },
-    {
-      id: 2,
-      name: "PC Gamer Omen",
-      type: "Gaming",
-      price: "11000",
-      priceNum: 11000,
-      image:
-        "https://technoplace.ma/11482-large_default/hp-omen-17-i7-7700hq-173-16gb-2tb-geforce-gtx-10.jpg",
-      stock: 0,
-      status: "Rupture de stock",
-      supplier: "HP Maroc",
-    },
-    {
-      id: 3,
-      name: "Clavier Mécanique",
-      type: "Accessoires",
-      price: "1200",
-      priceNum: 1200,
-      image:
-        "https://in-media.apjonlinecdn.com/catalog/product/cache/b3b166914d87ce343d4dc5ec5117b502/8/a/8aa01aa.png",
-      stock: 5,
-      status: "Faible stock",
-      supplier: "Gaming Zone",
-    },
-  ];
+  const getData = async () => {
+    try {
+      const response = await fetch("http://172.16.10.159:3000/products");
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   useEffect(() => {
     checkAdminStatus();
+    getData();
   }, []);
 
   const checkAdminStatus = async () => {
@@ -113,10 +86,12 @@ export function HomeScreen({ navigation }) {
         comparison = a.name.localeCompare(b.name);
         break;
       case "price":
-        comparison = a.priceNum - b.priceNum;
+        comparison = a.price - b.price;
         break;
       case "stock":
-        comparison = a.stock - b.stock;
+        const totalStockA = a.stocks.reduce((acc, stock) => acc + stock.quantity, 0);
+        const totalStockB = b.stocks.reduce((acc, stock) => acc + stock.quantity, 0);
+        comparison = totalStockA - totalStockB;
         break;
     }
     return sortOrder === "asc" ? comparison : -comparison;
@@ -130,31 +105,42 @@ export function HomeScreen({ navigation }) {
     )
     .sort(sortProducts);
 
-  const renderProductItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() => navigation.navigate("ProductDetail", { id: item.id })}
-      activeOpacity={0.7}
-    >
-      <Image source={{ uri: item.image }} style={styles.productImage} />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
-          {item.name}
-        </Text>
-        <Text style={styles.productType}>{item.type}</Text>
-        <Text style={styles.productPrice}>{item.price} DH</Text>
-        <Text
-          style={[
-            styles.productStock,
-            item.status === "Rupture de stock" && styles.stockOut,
-            item.status === "Faible stock" && styles.lowStock,
-          ]}
-        >
-          {item.status} ({item.stock} unités)
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const handleProductPress = (product) => {
+    navigation.navigate("productDetail", { 
+      id: product.id,
+    });
+  };
+
+  const renderProductItem = ({ item }) => {
+    const totalStock = item.stocks.reduce((acc, stock) => acc + stock.quantity, 0);
+    const status = totalStock === 0 ? "Rupture de stock" : totalStock <= 5 ? "Faible stock" : "En stock";
+
+    return (
+      <TouchableOpacity
+        style={styles.productCard}
+        onPress={() => handleProductPress(item)}
+        activeOpacity={0.7}
+      >
+        <Image source={{ uri: item.image }} style={styles.productImage} />
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={2}>
+            {item.name}
+          </Text>
+          <Text style={styles.productType}>{item.type}</Text>
+          <Text style={styles.productPrice}>{item.price} DH</Text>
+          <Text
+            style={[
+              styles.productStock,
+              status === "Rupture de stock" && styles.stockOut,
+              status === "Faible stock" && styles.lowStock,
+            ]}
+          >
+            {status} ({totalStock} unités)
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -169,7 +155,7 @@ export function HomeScreen({ navigation }) {
             {isAdmin && (
               <TouchableOpacity
                 style={styles.adminButton}
-                onPress={() => navigation.navigate("AdminScreen")}
+                onPress={() => navigation.navigate("AdminDashboard")}
               >
                 <Text style={styles.adminButtonText}>Admin</Text>
               </TouchableOpacity>
@@ -217,7 +203,8 @@ export function HomeScreen({ navigation }) {
                 <Text
                   style={[
                     styles.categoryButtonText,
-                    activeCategory === category && styles.categoryButtonTextActive,
+                    activeCategory === category &&
+                      styles.categoryButtonTextActive,
                   ]}
                 >
                   {category}

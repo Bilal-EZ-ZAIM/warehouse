@@ -27,7 +27,7 @@ export function LoginScreen({ navigation }) {
 
   const login = async (secretKey) => {
     try {
-      const response = await fetch("http://10.0.2.2:3000/warehousemans");
+      const response = await fetch("http://172.16.10.159:3000/warehousemans");
       const data = await response.json();
 
       const user = data.find((user) => user.secretKey === secretKey);
