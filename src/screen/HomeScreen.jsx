@@ -34,6 +34,7 @@ export function HomeScreen({ navigation }) {
     "Accessoires",
     "Gaming",
     "Réseau",
+    "autre",
   ];
 
   const fabActions = [
