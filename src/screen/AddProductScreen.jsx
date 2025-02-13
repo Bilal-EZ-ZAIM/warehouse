@@ -55,8 +55,6 @@ export function AddProductScreen({ navigation }) {
             return;
         }
 
-        // Here you would typically send the data to your backend
-        console.log('Product data:', product);
         Alert.alert('Succès', 'Produit ajouté avec succès');
         navigation.goBack();
     };
