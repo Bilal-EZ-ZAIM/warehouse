@@ -20,6 +20,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { width } = Dimensions.get("window");
 
 export function ProductDetailScreen({ navigation, route }) {
+  const { id } = route.params;
+  console.log(id);
+  
   const insets = useSafeAreaInsets();
   const scrollY = new Animated.Value(0);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -28,6 +31,8 @@ export function ProductDetailScreen({ navigation, route }) {
   const [productData, setProductData] = useState(null);
   const [editedProduct, setEditedProduct] = useState({});
   const [newStock, setNewStock] = useState("");
+  console.log(navigation);
+  
 
   useEffect(() => {
     checkAdminStatus();
@@ -36,7 +41,7 @@ export function ProductDetailScreen({ navigation, route }) {
 
   const fetchProductData = async () => {
     try {
-      const response = await fetch("http://172.16.10.159:3000/products/1");
+      const response = await fetch("http://172.16.10.159:3000/products/"+id);
       const data = await response.json();
       setProductData(data);
       setEditedProduct(data);

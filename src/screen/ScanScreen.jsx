@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ const ScanScreen = () => {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [product, setProduct] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [quantity, setQuantity] = useState("");
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("details");
@@ -63,14 +64,13 @@ const ScanScreen = () => {
       setLoading(true);
       setError(null);
       const response = await fetch(`${API_URL}?barcode=${barcodeValue}`);
-  
+
       if (!response.ok) {
         throw new Error("Erreur lors de la recherche du produit");
       }
-  
+
       const data = await response.json();
-      console.log(data); // يمكنك فقط إبقاء هذا في بيئة التطوير إذا كنت تحتاجه.
-  
+
       if (data.length > 0) {
         setProduct(data[0]);
         setShowModal(true);
@@ -80,14 +80,12 @@ const ScanScreen = () => {
         });
       }
     } catch (err) {
-      console.error("Erreur de connexion au serveur", err); // استخدام console.error بدلاً من console.log
+      console.error("Erreur de connexion au serveur", err);
       setError("Erreur de connexion au serveur");
     } finally {
       setLoading(false);
     }
   };
-  
-  
 
   const handleBarcodeScanned = ({ data }) => {
     if (!scanned) {
@@ -106,38 +104,59 @@ const ScanScreen = () => {
   };
 
   const updateProduct = async () => {
+    if (!selectedLocation) {
+      setError("Veuillez sélectionner un emplacement");
+      return;
+    }
+  
     if (!quantity || isNaN(quantity) || parseInt(quantity) <= 0) {
       setError("Veuillez saisir une quantité valide");
       return;
     }
-
+  
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/${product?.id}`, {
+  
+      const stockToUpdate = product.stocks.find(stock => stock.id === selectedLocation.id);
+      
+      if (!stockToUpdate) {
+        throw new Error("Emplacement non trouvé dans le stock");
+      }
+  
+      const response = await fetch(`${API_URL}/products/${product.id}/stocks/${stockToUpdate.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          stock: parseInt(quantity),
+          quantity: parseInt(quantity),
         }),
       });
-
+  
       if (!response.ok) {
         throw new Error("La mise à jour a échoué");
       }
-
-      setShowModal(false);
-      setScanned(false);
-      setBarcode("");
+  
+      const updatedStocks = product.stocks.map(stock =>
+        stock.id === stockToUpdate.id
+          ? { ...stock, quantity: parseInt(quantity) }
+          : stock
+      );
+  
+      setProduct({ ...product, stocks: updatedStocks });
+  
+      setSelectedLocation(null);
       setQuantity("");
       setError(null);
+  
+      alert(`Stock mis à jour avec succès pour ${selectedLocation.name}`);
     } catch (err) {
-      setError("Impossible de mettre à jour le stock");
+      setError(err.message || "Impossible de mettre à jour le stock");
     } finally {
       setLoading(false);
     }
   };
+  
 
   if (!permission) {
     return (
@@ -175,14 +194,32 @@ const ScanScreen = () => {
     );
   }
 
-  const stockStatus = product ? getStockStatus(product.stock) : null;
+  const stockStatus = getStockStatus(getTotalStock());
 
   const renderStockLocation = (stock) => (
-    <View key={stock.id} style={styles.locationCard}>
+    <TouchableOpacity
+      key={stock.id}
+      style={[
+        styles.locationCard,
+        selectedLocation?.id === stock.id && styles.selectedLocationCard,
+      ]}
+      onPress={() => setSelectedLocation(stock)}
+    >
       <View style={styles.locationHeader}>
         <View style={styles.locationNameContainer}>
-          <MaterialCommunityIcons name="store" size={24} color="#1e40af" />
-          <Text style={styles.locationName}>{stock.name}</Text>
+          <MaterialCommunityIcons
+            name="store"
+            size={24}
+            color={selectedLocation?.id === stock.id ? "#1e40af" : "#64748b"}
+          />
+          <Text
+            style={[
+              styles.locationName,
+              selectedLocation?.id === stock.id && styles.selectedLocationText,
+            ]}
+          >
+            {stock.name}
+          </Text>
         </View>
         <View
           style={[
@@ -211,7 +248,7 @@ const ScanScreen = () => {
           </Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -293,7 +330,11 @@ const ScanScreen = () => {
         visible={showModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowModal(false)}
+        onRequestClose={() => {
+          setShowModal(false);
+          setSelectedLocation(null);
+          setQuantity("");
+        }}
       >
         <View style={styles.modalOverlay}>
           <BlurView intensity={100} style={styles.modalContent}>
@@ -303,7 +344,11 @@ const ScanScreen = () => {
                 <Text style={styles.modalSubtitle}>#{product?.barcode}</Text>
               </View>
               <TouchableOpacity
-                onPress={() => setShowModal(false)}
+                onPress={() => {
+                  setShowModal(false);
+                  setSelectedLocation(null);
+                  setQuantity("");
+                }}
                 style={styles.closeButton}
               >
                 <Ionicons name="close" size={24} color="#64748b" />
@@ -428,10 +473,24 @@ const ScanScreen = () => {
                         </Text>
                       </View>
                     </View>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.stocksContainer}>
+                  <View style={styles.stocksSummary}>
+                    <Text style={styles.stocksSummaryTitle}>
+                      Sélectionnez un emplacement pour mettre à jour le stock
+                    </Text>
+                    <Text style={styles.stocksSummaryText}>
+                      {product?.stocks?.length || 0} emplacements disponibles
+                    </Text>
+                  </View>
+                  {product?.stocks?.map(renderStockLocation)}
 
-                    <View style={styles.quantityContainer}>
-                      <Text style={styles.quantityLabel}>
-                        Mettre à jour le stock
+                  {selectedLocation && (
+                    <View style={styles.updateStockSection}>
+                      <Text style={styles.updateStockTitle}>
+                        Mise à jour du stock pour {selectedLocation.name}
                       </Text>
                       <View style={styles.quantityInputContainer}>
                         <TextInput
@@ -444,19 +503,7 @@ const ScanScreen = () => {
                         />
                       </View>
                     </View>
-                  </View>
-                </>
-              ) : (
-                <View style={styles.stocksContainer}>
-                  <View style={styles.stocksSummary}>
-                    <Text style={styles.stocksSummaryTitle}>
-                      Répartition du Stock
-                    </Text>
-                    <Text style={styles.stocksSummaryText}>
-                      {product?.stocks?.length || 0} emplacements
-                    </Text>
-                  </View>
-                  {product?.stocks?.map(renderStockLocation)}
+                  )}
                 </View>
               )}
             </ScrollView>
@@ -464,14 +511,22 @@ const ScanScreen = () => {
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowModal(false)}
+                onPress={() => {
+                  setShowModal(false);
+                  setSelectedLocation(null);
+                  setQuantity("");
+                }}
               >
                 <Text style={styles.cancelButtonText}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.updateButton]}
+                style={[
+                  styles.modalButton,
+                  styles.updateButton,
+                  (!selectedLocation || !quantity) && styles.disabledButton,
+                ]}
                 onPress={updateProduct}
-                disabled={loading}
+                disabled={loading || !selectedLocation || !quantity}
               >
                 {loading ? (
                   <ActivityIndicator color="#ffffff" size="small" />
@@ -498,163 +553,119 @@ const ScanScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#ffffff",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.8)",
-    textAlign: "center",
-    marginTop: 4,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
+    backgroundColor: "#f1f5f9",
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  header: {
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#ffffff",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#e0e7ff",
+  },
+  content: {
+    flex: 1,
     padding: 20,
-  },
-  loadingGradient: {
-    padding: 30,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  loadingMessage: {
-    color: "#ffffff",
-    fontSize: 16,
-    marginTop: 12,
-  },
-  errorGradient: {
-    padding: 30,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  errorMessage: {
-    color: "#dc2626",
-    fontSize: 16,
-    marginTop: 12,
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: "#dc2626",
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: "#ffffff",
-    fontWeight: "600",
   },
   cameraContainer: {
     width: "100%",
-    height: 300,
+    aspectRatio: 1,
+    borderRadius: 12,
     overflow: "hidden",
-    borderRadius: 16,
-    marginBottom: 20,
     backgroundColor: "#000000",
   },
   camera: {
     flex: 1,
   },
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
   },
   scanArea: {
-    width: 250,
-    height: 250,
-    borderWidth: 2,
-    borderColor: "#1e40af",
-    backgroundColor: "transparent",
+    width: width * 0.7,
+    height: width * 0.7,
     position: "relative",
   },
   cornerTL: {
     position: "absolute",
-    top: -2,
-    left: -2,
-    width: 20,
-    height: 20,
+    top: 0,
+    left: 0,
+    width: 40,
+    height: 40,
     borderTopWidth: 4,
     borderLeftWidth: 4,
     borderColor: "#ffffff",
   },
   cornerTR: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    width: 20,
-    height: 20,
+    top: 0,
+    right: 0,
+    width: 40,
+    height: 40,
     borderTopWidth: 4,
     borderRightWidth: 4,
     borderColor: "#ffffff",
   },
   cornerBL: {
     position: "absolute",
-    bottom: -2,
-    left: -2,
-    width: 20,
-    height: 20,
+    bottom: 0,
+    left: 0,
+    width: 40,
+    height: 40,
     borderBottomWidth: 4,
     borderLeftWidth: 4,
     borderColor: "#ffffff",
   },
   cornerBR: {
     position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 20,
-    height: 20,
+    bottom: 0,
+    right: 0,
+    width: 40,
+    height: 40,
     borderBottomWidth: 4,
     borderRightWidth: 4,
     borderColor: "#ffffff",
   },
   scanText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 16,
     marginTop: 20,
     textAlign: "center",
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "#1e293b",
-    marginTop: 12,
-    fontSize: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   manualSection: {
-    marginBottom: 20,
+    marginTop: 20,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#ffffff",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inputIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   input: {
     flex: 1,
@@ -663,38 +674,48 @@ const styles = StyleSheet.create({
     color: "#1e293b",
   },
   searchButton: {
+    backgroundColor: "#1e40af",
     width: 40,
     height: 40,
-    backgroundColor: "#1e40af",
-    borderRadius: 10,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
   },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    padding: 16,
     backgroundColor: "#fee2e2",
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 8,
     marginTop: 12,
   },
   errorText: {
     color: "#dc2626",
-    fontSize: 14,
+    marginLeft: 8,
     flex: 1,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#1e40af",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
+    flex: 1,
+    marginTop: 60,
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "90%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: "hidden",
   },
   modalHeader: {
     flexDirection: "row",
@@ -715,14 +736,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#f1f5f9",
+    justifyContent: "center",
+    alignItems: "center",
   },
   tabContainer: {
     flexDirection: "row",
-    padding: 12,
-    backgroundColor: "#f8fafc",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    padding: 4,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    margin: 20,
   },
   tab: {
     flex: 1,
@@ -730,49 +756,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    gap: 8,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: "#e0e7ff",
+    backgroundColor: "#ffffff",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabText: {
+    marginLeft: 8,
     fontSize: 16,
     color: "#64748b",
-    fontWeight: "500",
   },
   activeTabText: {
     color: "#1e40af",
+    fontWeight: "600",
   },
   modalBody: {
-    padding: 20,
+    flex: 1,
   },
   productImage: {
     width: "100%",
     height: 200,
-    borderRadius: 16,
-    marginBottom: 20,
   },
   productInfo: {
-    gap: 20,
+    padding: 20,
   },
   productHeader: {
-    backgroundColor: "#f8fafc",
-    padding: 16,
-    borderRadius: 12,
+    marginBottom: 20,
   },
   productName: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "bold",
     color: "#1e293b",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   priceContainer: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f1f5f9",
     padding: 12,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
   },
   priceLabel: {
     fontSize: 14,
@@ -780,9 +805,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   productPrice: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "bold",
-    color: "#1e40af",
+    color: "#1e293b",
   },
   soldPrice: {
     fontSize: 16,
@@ -790,82 +815,51 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   infoCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f8fafc",
     padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    marginBottom: 20,
   },
   infoLabel: {
-    fontSize: 14,
-    color: "#64748b",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1e293b",
     marginBottom: 8,
   },
   description: {
-    fontSize: 16,
-    color: "#1e293b",
-    lineHeight: 24,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
   },
   statsGrid: {
     flexDirection: "row",
-    gap: 12,
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
   statCard: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
     alignItems: "center",
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 12,
+    marginHorizontal: 4,
   },
   statLabel: {
     fontSize: 12,
     color: "#64748b",
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: 4,
   },
   statValue: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#1e293b",
-  },
-  quantityContainer: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  quantityLabel: {
-    fontSize: 16,
     fontWeight: "600",
     color: "#1e293b",
-    marginBottom: 12,
-  },
-  quantityInputContainer: {
-    alignItems: "center",
-  },
-  quantityInput: {
-    width: "100%",
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1e293b",
-    backgroundColor: "#ffffff",
+    marginTop: 2,
   },
   stocksContainer: {
-    gap: 16,
+    padding: 20,
   },
   stocksSummary: {
-    backgroundColor: "#f8fafc",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 20,
   },
   stocksSummaryTitle: {
     fontSize: 18,
@@ -881,9 +875,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    marginBottom: 12,
+  },
+  selectedLocationCard: {
+    borderColor: "#1e40af",
+    borderWidth: 2,
+    backgroundColor: "#f0f9ff",
   },
   locationHeader: {
     flexDirection: "row",
@@ -894,38 +898,68 @@ const styles = StyleSheet.create({
   locationNameContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
   locationName: {
     fontSize: 16,
     fontWeight: "600",
     color: "#1e293b",
+    marginLeft: 8,
+  },
+  selectedLocationText: {
+    color: "#1e40af",
+    fontWeight: "600",
   },
   quantityBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 4,
+    borderRadius: 16,
   },
   quantityBadgeText: {
     color: "#ffffff",
     fontWeight: "600",
-    fontSize: 14,
   },
   locationDetails: {
-    gap: 8,
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 8,
   },
   locationDetail: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    marginBottom: 8,
   },
   locationText: {
-    fontSize: 14,
+    marginLeft: 8,
     color: "#64748b",
+  },
+  updateStockSection: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: "#f0f9ff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#1e40af",
+  },
+  updateStockTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1e40af",
+    marginBottom: 12,
+  },
+  quantityInputContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  quantityInput: {
+    height: 50,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#1e293b",
   },
   modalFooter: {
     flexDirection: "row",
-    gap: 12,
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: "#e2e8f0",
@@ -933,26 +967,67 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     height: 50,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
+    borderRadius: 25,
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 6,
   },
   cancelButton: {
     backgroundColor: "#f1f5f9",
+  },
+  updateButton: {
+    backgroundColor: "#1e40af",
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   cancelButtonText: {
     color: "#64748b",
     fontSize: 16,
     fontWeight: "600",
   },
-  updateButton: {
-    backgroundColor: "#1e40af",
+  updateButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
   },
   buttonIcon: {
-    marginRight: 8,
+    marginRight: 4,
   },
-  updateButtonText: {
+  loadingGradient: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingMessage: {
+    color: "#ffffff",
+    fontSize: 16,
+    marginTop: 12,
+  },
+  errorGradient: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorMessage: {
+    fontSize: 18,
+    color: "#dc2626",
+    marginTop: 12,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  retryButtonText: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",

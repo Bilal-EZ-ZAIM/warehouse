@@ -26,13 +26,16 @@ export function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const login = async (secretKey) => {
+    console.log(secretKey);
+    
     try {
       const response = await fetch("http://172.16.10.159:3000/warehousemans");
       const data = await response.json();
-
+      console.log(data);
+      
       const user = data.find((user) => user.secretKey === secretKey);
       if (user) {
-        await AsyncStorage.setItem("secretKey", user.secretKey);
+        await AsyncStorage.setItem("secretKey", user.id);
         await AsyncStorage.setItem("name", user.name);
         return user;
       }

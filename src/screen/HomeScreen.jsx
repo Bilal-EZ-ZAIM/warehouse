@@ -10,6 +10,7 @@ import {
   TextInput,
   FlatList,
   StatusBar,
+  Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Platform } from "react-native";
@@ -25,6 +26,7 @@ export function HomeScreen({ navigation }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userName, setUsername] = useState("");
   const [products, setProducts] = useState([]);
+  const [isFabMenuVisible, setIsFabMenuVisible] = useState(false);
 
   const categories = [
     "Tous",
@@ -34,11 +36,48 @@ export function HomeScreen({ navigation }) {
     "Réseau",
   ];
 
+  const fabActions = [
+    {
+      icon: "🔍",
+      label: "Scanner",
+      onPress: () => {
+        setIsFabMenuVisible(false);
+        navigation.navigate("QRScannerScreen");
+      },
+    },
+    {
+      icon: "👤",
+      label: "Admin",
+      onPress: () => {
+        setIsFabMenuVisible(false);
+        navigation.navigate("AdminDashboard");
+      },
+    },
+    {
+      icon: "➕",
+      label: "Nouveau Produit",
+      onPress: () => {
+        setIsFabMenuVisible(false);
+        navigation.navigate("CreateProductScreen");
+      },
+    },
+    {
+      icon: "🚪",
+      label: "Déconnexion",
+      onPress: handleLogout,
+    },
+  ];
+
   const getData = async () => {
     try {
+      const secretKey = await AsyncStorage.getItem("secretKey");
+
       const response = await fetch("http://172.16.10.159:3000/products");
       const data = await response.json();
-      setProducts(data);
+      const sx = data.filter(
+        (item) => item.editedBy[0].warehousemanId == secretKey
+      );
+      setProducts(sx);
     } catch (error) {
       console.error(error);
     }
@@ -89,8 +128,14 @@ export function HomeScreen({ navigation }) {
         comparison = a.price - b.price;
         break;
       case "stock":
-        const totalStockA = a.stocks.reduce((acc, stock) => acc + stock.quantity, 0);
-        const totalStockB = b.stocks.reduce((acc, stock) => acc + stock.quantity, 0);
+        const totalStockA = a.stocks.reduce(
+          (acc, stock) => acc + stock.quantity,
+          0
+        );
+        const totalStockB = b.stocks.reduce(
+          (acc, stock) => acc + stock.quantity,
+          0
+        );
         comparison = totalStockA - totalStockB;
         break;
     }
@@ -106,14 +151,24 @@ export function HomeScreen({ navigation }) {
     .sort(sortProducts);
 
   const handleProductPress = (product) => {
-    navigation.navigate("productDetail", { 
+    navigation.navigate("productDetail", {
       id: product.id,
     });
   };
 
   const renderProductItem = ({ item }) => {
-    const totalStock = item.stocks.reduce((acc, stock) => acc + stock.quantity, 0);
-    const status = totalStock === 0 ? "Rupture de stock" : totalStock <= 5 ? "Faible stock" : "En stock";
+    const totalStock = item.stocks.reduce(
+      (acc, stock) => acc + stock.quantity,
+      0
+    );
+    const status =
+      totalStock === 0
+        ? "Rupture de stock"
+        : totalStock <= 5
+        ? "Faible stock"
+        : "En stock";
+
+    // if (!item.image) return null;
 
     return (
       <TouchableOpacity
@@ -141,6 +196,39 @@ export function HomeScreen({ navigation }) {
       </TouchableOpacity>
     );
   };
+
+  const renderFabMenu = () => (
+    <Modal
+      transparent={true}
+      visible={isFabMenuVisible}
+      animationType="fade"
+      onRequestClose={() => setIsFabMenuVisible(false)}
+    >
+      <TouchableOpacity
+        style={styles.fabMenuOverlay}
+        activeOpacity={1}
+        onPress={() => setIsFabMenuVisible(false)}
+      >
+        <View style={styles.fabMenuContainer}>
+          {fabActions.map((action, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.fabMenuItem}
+              onPress={action.onPress}
+            >
+              <Text style={styles.fabMenuItemLabel}>{action.label}</Text>
+              <LinearGradient
+                colors={["#4f46e5", "#3b82f6"]}
+                style={styles.fabMenuItemGradient}
+              >
+                <Text style={styles.fabMenuItemIcon}>{action.icon}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   return (
     <View style={styles.container}>
@@ -263,7 +351,7 @@ export function HomeScreen({ navigation }) {
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate("AddProduct")}
+        onPress={() => setIsFabMenuVisible(true)}
         activeOpacity={0.8}
       >
         <LinearGradient
@@ -275,6 +363,8 @@ export function HomeScreen({ navigation }) {
           <Text style={styles.fabIcon}>+</Text>
         </LinearGradient>
       </TouchableOpacity>
+
+      {renderFabMenu()}
     </View>
   );
 }
@@ -486,6 +576,50 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: "#ffffff",
     fontWeight: "bold",
+  },
+  fabMenuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+    paddingBottom: 80,
+  },
+  fabMenuContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: "flex-end",
+  },
+  fabMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 8,
+    opacity: 1,
+  },
+  fabMenuItemGradient: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  fabMenuItemIcon: {
+    fontSize: 20,
+    color: "#ffffff",
+  },
+  fabMenuItemLabel: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    fontSize: 16,
+    color: "#1e293b",
+    fontWeight: "600",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
 

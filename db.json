@@ -14,7 +14,7 @@
         {
           "id": 1999,
           "name": "Gueliz B2",
-          "quantity": 21,
+          "quantity": 50,
           "localisation": {
             "city": "Marrakesh",
             "latitude": 31.628674,
@@ -37,7 +37,9 @@
           "warehousemanId": 1333,
           "at": "2025-02-02"
         }
-      ]
+      ],
+      "locationId": 2991,
+      "quantity": 1
     },
     {
       "id": "2",
@@ -93,6 +95,87 @@
           "at": "2025-02-02"
         }
       ]
+    },
+    {
+      "id": "4701",
+      "name": "sidi ali",
+      "description": "al alsk jdnfolnvskvn s",
+      "type": "autre",
+      "barcode": "6111035000430",
+      "price": 123,
+      "solde": null,
+      "supplier": "bilanox",
+      "image": "",
+      "stocks": [],
+      "stock": 123,
+      "editedBy": [
+        {
+          "warehousemanId": 1333,
+          "at": "2025-02-12T23:28:05.289Z"
+        }
+      ]
+    },
+    {
+      "id": "dd38",
+      "name": "Product1",
+      "description": "description de productions 1",
+      "type": "prod",
+      "barcode": "12345678543",
+      "price": 12,
+      "solde": null,
+      "supplier": "bilal",
+      "image": "",
+      "stocks": [
+        {
+          "id": 1739403196522,
+          "name": "cityy",
+          "quantity": 123,
+          "localisation": {
+            "city": "casa",
+            "latitude": 0,
+            "longitude": 0
+          }
+        }
+      ],
+      "stock": 123,
+      "editedBy": [
+        {
+          "warehousemanId": 1333,
+          "at": "2025-02-12T23:33:34.923Z"
+        }
+      ]
+    },
+    {
+      "id": "0e8d",
+      "name": "Danon",
+      "description": "Danonn ",
+      "type": "Danon",
+      "barcode": "6111242102781",
+      "price": 12,
+      "solde": null,
+      "supplier": "Danon",
+      "image": "",
+      "stocks": [
+        {
+          "id": 1739440712107,
+          "name": "Sss",
+          "quantity": 12,
+          "localisation": {
+            "city": "Casa",
+            "latitude": 0,
+            "longitude": 0
+          }
+        }
+      ],
+      "stock": 22,
+      "editedBy": [
+        {
+          "warehousemanId": "1444",
+          "at": "2025-02-13T09:58:44.453Z"
+        }
+      ],
+      "locationId": 1739440712107,
+      "quantity": 100
     }
   ],
   "warehousemans": [

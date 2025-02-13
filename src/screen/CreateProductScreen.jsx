@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,38 +9,38 @@ import {
   ActivityIndicator,
   Image,
   Platform,
-} from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+const API_URL = "http://172.16.10.159:3000/products";
 
-const API_URL = 'http://172.16.10.159:3000/products';
-
-
-
-export default function CreateProductScreen() {
+export default function CreateProductScreen({ route, navigation }) {
+  const { barcode } = route.params;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [product, setProduct] = useState({
-    name: '',
-    description: '',
-    type: '',
-    barcode: '',
-    price: '',
-    solde: '',
-    supplier: '',
-    image: '',
+    name: "",
+    description: "",
+    type: "",
+    barcode: typeof barcode !== "undefined" ? barcode : "",
+    price: "",
+    solde: "",
+    supplier: "",
+    image: "",
   });
+
   const [locations, setLocations] = useState([]);
   const [currentStep, setCurrentStep] = useState(1);
 
   const handleAddLocation = () => {
     const newLocation = {
       id: Date.now(),
-      name: '',
+      name: "",
       quantity: 0,
       localisation: {
-        city: '',
+        city: "",
         latitude: 0,
         longitude: 0,
       },
@@ -50,8 +50,8 @@ export default function CreateProductScreen() {
 
   const updateLocation = (index, field, value) => {
     const updatedLocations = [...locations];
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
+    if (field.includes(".")) {
+      const [parent, child] = field.split(".");
       updatedLocations[index] = {
         ...updatedLocations[index],
         [parent]: {
@@ -79,7 +79,7 @@ export default function CreateProductScreen() {
       setError(null);
 
       if (!product.name || !product.barcode || !product.price) {
-        throw new Error('Veuillez remplir tous les champs obligatoires');
+        throw new Error("Veuillez remplir tous les champs obligatoires");
       }
 
       const totalStock = locations.reduce((sum, loc) => sum + loc.quantity, 0);
@@ -90,25 +90,27 @@ export default function CreateProductScreen() {
         solde: product.solde ? parseFloat(product.solde) : null,
         stocks: locations,
         stock: totalStock,
-        editedBy: [{
-          warehousemanId: 1333,
-          at: new Date().toISOString(),
-        }],
+        editedBy: [
+          {
+            warehousemanId: await AsyncStorage.getItem("secretKey"),
+            at: new Date().toISOString(),
+          },
+        ],
       };
 
       const response = await fetch(API_URL, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(newProduct),
       });
 
       if (!response.ok) {
-        throw new Error('Erreur lors de la création du produit');
+        throw new Error("Erreur lors de la création du produit");
       }
 
-      router.back();
+      navigation.replace("AdminDashboard");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -261,7 +263,7 @@ export default function CreateProductScreen() {
             <TextInput
               style={styles.input}
               value={location.name}
-              onChangeText={(text) => updateLocation(index, 'name', text)}
+              onChangeText={(text) => updateLocation(index, "name", text)}
               placeholder="Nom de l'emplacement"
               placeholderTextColor="#94a3b8"
             />
@@ -272,7 +274,9 @@ export default function CreateProductScreen() {
             <TextInput
               style={styles.input}
               value={location.localisation.city}
-              onChangeText={(text) => updateLocation(index, 'localisation.city', text)}
+              onChangeText={(text) =>
+                updateLocation(index, "localisation.city", text)
+              }
               placeholder="Ville"
               placeholderTextColor="#94a3b8"
             />
@@ -284,7 +288,13 @@ export default function CreateProductScreen() {
               <TextInput
                 style={styles.input}
                 value={String(location.localisation.latitude)}
-                onChangeText={(text) => updateLocation(index, 'localisation.latitude', parseFloat(text) || 0)}
+                onChangeText={(text) =>
+                  updateLocation(
+                    index,
+                    "localisation.latitude",
+                    parseFloat(text) || 0
+                  )
+                }
                 placeholder="0.000000"
                 placeholderTextColor="#94a3b8"
                 keyboardType="numeric"
@@ -296,7 +306,13 @@ export default function CreateProductScreen() {
               <TextInput
                 style={styles.input}
                 value={String(location.localisation.longitude)}
-                onChangeText={(text) => updateLocation(index, 'localisation.longitude', parseFloat(text) || 0)}
+                onChangeText={(text) =>
+                  updateLocation(
+                    index,
+                    "localisation.longitude",
+                    parseFloat(text) || 0
+                  )
+                }
                 placeholder="0.000000"
                 placeholderTextColor="#94a3b8"
                 keyboardType="numeric"
@@ -309,7 +325,9 @@ export default function CreateProductScreen() {
             <TextInput
               style={styles.input}
               value={String(location.quantity)}
-              onChangeText={(text) => updateLocation(index, 'quantity', parseInt(text) || 0)}
+              onChangeText={(text) =>
+                updateLocation(index, "quantity", parseInt(text) || 0)
+              }
               placeholder="0"
               placeholderTextColor="#94a3b8"
               keyboardType="numeric"
@@ -335,11 +353,8 @@ export default function CreateProductScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
-      <LinearGradient
-        colors={['#1e40af', '#3b82f6']}
-        style={styles.header}
-      >
+
+      <LinearGradient colors={["#1e40af", "#3b82f6"]} style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -354,16 +369,15 @@ export default function CreateProductScreen() {
           {[1, 2, 3].map((step) => (
             <TouchableOpacity
               key={step}
-              style={[
-                styles.step,
-                currentStep === step && styles.activeStep
-              ]}
+              style={[styles.step, currentStep === step && styles.activeStep]}
               onPress={() => setCurrentStep(step)}
             >
-              <Text style={[
-                styles.stepText,
-                currentStep === step && styles.activeStepText
-              ]}>
+              <Text
+                style={[
+                  styles.stepText,
+                  currentStep === step && styles.activeStepText,
+                ]}
+              >
                 {step}
               </Text>
             </TouchableOpacity>
@@ -371,7 +385,7 @@ export default function CreateProductScreen() {
         </View>
       </LinearGradient>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -394,7 +408,12 @@ export default function CreateProductScreen() {
             style={[styles.footerButton, styles.backStepButton]}
             onPress={() => setCurrentStep(currentStep - 1)}
           >
-            <Ionicons name="arrow-back" size={20} color="#64748b" style={styles.buttonIcon} />
+            <Ionicons
+              name="arrow-back"
+              size={20}
+              color="#64748b"
+              style={styles.buttonIcon}
+            />
             <Text style={styles.backStepButtonText}>Précédent</Text>
           </TouchableOpacity>
         )}
@@ -405,7 +424,12 @@ export default function CreateProductScreen() {
             onPress={() => setCurrentStep(currentStep + 1)}
           >
             <Text style={styles.nextStepButtonText}>Suivant</Text>
-            <Ionicons name="arrow-forward" size={20} color="#ffffff" style={styles.buttonIcon} />
+            <Ionicons
+              name="arrow-forward"
+              size={20}
+              color="#ffffff"
+              style={styles.buttonIcon}
+            />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -417,7 +441,12 @@ export default function CreateProductScreen() {
               <ActivityIndicator color="#ffffff" size="small" />
             ) : (
               <>
-                <Ionicons name="checkmark-circle" size={20} color="#ffffff" style={styles.buttonIcon} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={20}
+                  color="#ffffff"
+                  style={styles.buttonIcon}
+                />
                 <Text style={styles.submitButtonText}>Créer le Produit</Text>
               </>
             )}
@@ -431,36 +460,36 @@ export default function CreateProductScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
     paddingBottom: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
   headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
   },
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: "rgba(255,255,255,0.2)",
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#ffffff',
+    fontWeight: "700",
+    color: "#ffffff",
     marginLeft: 12,
   },
   steps: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 20,
     gap: 8,
   },
@@ -468,20 +497,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   activeStep: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
   stepText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   activeStepText: {
-    color: '#1e40af',
+    color: "#1e40af",
   },
   content: {
     flex: 1,
@@ -493,25 +522,25 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   imagePreviewContainer: {
-    aspectRatio: 16/9,
-    backgroundColor: '#ffffff',
+    aspectRatio: 16 / 9,
+    backgroundColor: "#ffffff",
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
   },
   imagePreview: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   imagePlaceholder: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
   },
   imagePlaceholderText: {
-    color: '#94a3b8',
+    color: "#94a3b8",
     marginTop: 8,
     fontSize: 14,
   },
@@ -520,141 +549,141 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: "600",
+    color: "#1e293b",
   },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
     borderRadius: 12,
     padding: 12,
     fontSize: 16,
-    color: '#1e293b',
+    color: "#1e293b",
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   locationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   locationTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: "600",
+    color: "#1e293b",
   },
   addLocationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     padding: 8,
   },
   addLocationText: {
-    color: '#1e40af',
+    color: "#1e40af",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   locationCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
     gap: 16,
   },
   locationCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   removeButton: {
     padding: 4,
   },
   emptyLocations: {
     padding: 40,
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
+    alignItems: "center",
+    backgroundColor: "#ffffff",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
   },
   emptyLocationsText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: "600",
+    color: "#1e293b",
     marginTop: 16,
   },
   emptyLocationsSubtext: {
     fontSize: 14,
-    color: '#64748b',
+    color: "#64748b",
     marginTop: 4,
-    textAlign: 'center',
+    textAlign: "center",
   },
   errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     padding: 16,
-    backgroundColor: '#fee2e2',
+    backgroundColor: "#fee2e2",
     borderRadius: 12,
     marginBottom: 20,
   },
   errorText: {
-    color: '#dc2626',
+    color: "#dc2626",
     fontSize: 14,
     flex: 1,
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     padding: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: "#e2e8f0",
   },
   footerButton: {
     flex: 1,
     height: 50,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
   },
   backStepButton: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: "#f1f5f9",
   },
   nextStepButton: {
-    backgroundColor: '#1e40af',
+    backgroundColor: "#1e40af",
   },
   submitButton: {
-    backgroundColor: '#15803d',
+    backgroundColor: "#15803d",
     flex: 2,
   },
   buttonIcon: {
     marginHorizontal: 8,
   },
   backStepButtonText: {
-    color: '#64748b',
+    color: "#64748b",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   nextStepButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   submitButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
